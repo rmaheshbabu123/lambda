@@ -1,0 +1,75 @@
+{
+    "rds": {
+        "host": "rds-host",
+        "port": 5432,
+        "dbname": "dbname",
+        "user": "rds-user",
+        "password": "rds-password"
+    },
+    "users": [
+        {
+            "username": "user1",
+            "password": "password1"
+        },
+        {
+            "username": "user2",
+            "password": "password2"
+        },
+        ...
+    ]
+}
+
+*************************************************
+
+import psycopg2
+import json
+
+def lambda_handler(event, context):
+    # Load the config file
+    with open("config.json", "r") as f:
+        config = json.load(f)
+
+    # Connect to the RDS Aurora PostgreSQL database
+    conn = psycopg2.connect(
+        host=config["rds"]["host"],
+        port=config["rds"]["port"],
+        dbname=config["rds"]["dbname"],
+        user=config["rds"]["user"],
+        password=config["rds"]["password"]
+    )
+
+    # Create a cursor for executing SQL commands
+    cur = conn.cursor()
+
+    # Loop through the list of users in the config file
+    for user in config["users"]:
+        # Construct the SQL command to create a user
+        sql = "CREATE USER {} WITH PASSWORD '{}'".format(user["username"], user["password"])
+
+        # Execute the SQL command to create the user
+        cur.execute(sql)
+
+        # Grant the SELECT, UPDATE, and INSERT privileges to the user
+        cur.execute("GRANT SELECT, UPDATE, INSERT ON ALL TABLES IN SCHEMA public TO {}".format(user["username"]))
+
+    # Commit the changes to the database
+    conn.commit()
+
+    # Close the cursor and the connection
+    cur.close()
+    conn.close()
+
+    return "Users created successfully."
+
+
+*************************************************
+
+To connect a Lambda function to an Amazon RDS database in a private subnet, you need to make sure that the Lambda function and the RDS database are both in the same VPC and in a private subnet, and that the security group for the RDS database allows incoming traffic from the security group for the Lambda function. Here's a step-by-step overview of how to do it:
+
+Create a Virtual Private Cloud (VPC) and two private subnets in different availability zones.
+Create an RDS instance in one of the private subnets and associate it with the VPC.
+Create a security group for the RDS instance and configure it to allow incoming traffic from the private subnets.
+Create a security group for the Lambda function and configure it to allow outgoing traffic to the RDS instance on the specified port.
+Create a Lambda function in the other private subnet and associate it with the VPC.
+Update the Lambda function code to connect to the RDS instance by specifying the hostname, port number, database name, username, and password.
+Test the Lambda function to see if it can connect to the RDS instance and execute the desired operations.
